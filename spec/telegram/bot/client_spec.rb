@@ -88,6 +88,23 @@ RSpec.describe Telegram::Bot::Client do
         should eq expected
       end
     end
+
+    context 'when nested objects contain Files' do
+      let(:file_1) { File.new(__FILE__) }
+      let(:file_2) { File.new(__FILE__) }
+      let(:file_3) { File.new(__FILE__) }
+      let(:input) { {a: file_1, b: {c: file_2, d: 123}, e: [{f: file_3}, {g: 456}]} }
+
+      it 'extracts files to the top-level' do
+        should eq(
+          a: file_1,
+          b: {c: 'attach://_file0', d: 123}.to_json,
+          e: [{f: 'attach://_file1'}, {g: 456}].to_json,
+          '_file0' => file_2,
+          '_file1' => file_3,
+        )
+      end
+    end
   end
 
   describe '.prepare_async_args' do

@@ -35,12 +35,15 @@ module Telegram
           prepend TypedResponse
         end
 
-        # Encodes nested hashes as json.
+        # Encodes nested hashes and arrays as json and extract File objects from them
+        # to the top level. Top-level File objects are handled by httpclient.
+        # More details: https://core.telegram.org/bots/api#sending-files
         def prepare_body(body)
-          body = body.dup
-          body.each do |k, val|
-            body[k] = val.to_json if val.is_a?(Hash) || val.is_a?(Array)
+          files = {}
+          body = body.transform_values do |val|
+            val.is_a?(Hash) || val.is_a?(Array) ? extract_files(val, files).to_json : val
           end
+          body.merge!(files)
         end
 
         def prepare_async_args(action, body = {})
@@ -57,6 +60,26 @@ module Telegram
           when 404 then NotFound.new(message)
           else Error.new("#{response.reason}: #{message}")
           end
+        end
+
+        private
+
+        # Replace File objects in the nested body fields with urls.
+        # File objects are added into `files` hash.
+        def extract_files(object, files)
+          block = ->(val) {
+            case val
+            when File
+              arg_name = "_file#{files.size}"
+              files[arg_name] = val
+              "attach://#{arg_name}"
+            when Hash, Array
+              extract_files(val, files)
+            else
+              val
+            end
+          }
+          object.is_a?(Array) ? object.map(&block) : object.transform_values(&block)
         end
       end
 

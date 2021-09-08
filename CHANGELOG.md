@@ -1,5 +1,7 @@
 # Unreleased
 
+- Fix sending File objects in nested objects (ex., in sendMediaGroup).
+
 # 0.15.4
 
 - Update to Bot API 5.3
